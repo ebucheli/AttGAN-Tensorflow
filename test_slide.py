@@ -25,6 +25,7 @@ import models
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_name', dest='experiment_name', help='experiment_name')
 parser.add_argument('--test_att', dest='test_att', help='test_att')
+parser.add_argument('--source', dest = 'source', help = 'source')
 parser.add_argument('--test_int_min', dest='test_int_min', type=float, default=-1.0, help='test_int_min')
 parser.add_argument('--test_int_max', dest='test_int_max', type=float, default=1.0, help='test_int_max')
 parser.add_argument('--n_slide', dest='n_slide', type=int, default=10, help='n_slide')
@@ -51,6 +52,7 @@ thres_int = args['thres_int']
 test_int_min = args_.test_int_min
 test_int_max = args_.test_int_max
 n_slide = args_.n_slide
+source = args_.source
 # others
 use_cropped_img = args['use_cropped_img']
 experiment_name = args_.experiment_name
@@ -64,7 +66,14 @@ assert test_att is not None, 'test_att should be chosen in %s' % (str(atts))
 
 # data
 sess = tl.session()
-te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+if source == 'Celeba':
+    te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+
+elif source == 'Custom':
+    te_data = data.Custom('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+else:
+    print('Incorrect Source: Choose Celeba or Custom')
+    exit()
 
 # models
 Genc = partial(models.Genc, dim=enc_dim, n_layers=enc_layers)
@@ -105,9 +114,14 @@ try:
 
         save_dir = './output/%s/sample_testing_slide_%s' % (experiment_name, test_att)
         pylib.mkdir(save_dir)
-        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx + 182638))
+        if source == 'Celeba':
+            add = 182638
+        else:
+            add = 0
 
-        print('%d.png done!' % (idx + 182638))
+        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx + add))
+
+        print('%d.png done!' % (idx + add))
 
 except:
     traceback.print_exc()

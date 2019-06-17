@@ -25,6 +25,7 @@ import models
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_name', dest='experiment_name', help='experiment_name')
 parser.add_argument('--test_int', dest='test_int', type=float, default=1.0, help='test_int')
+parser.add_argument('--source', dest='source', help='source')
 args_ = parser.parse_args()
 with open('./output/%s/setting.txt' % args_.experiment_name) as f:
     args = json.load(f)
@@ -45,6 +46,7 @@ dis_layers = args['dis_layers']
 # testing
 thres_int = args['thres_int']
 test_int = args_.test_int
+source = args_.source
 # others
 use_cropped_img = args['use_cropped_img']
 experiment_name = args_.experiment_name
@@ -56,7 +58,14 @@ experiment_name = args_.experiment_name
 
 # data
 sess = tl.session()
-te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+if source == 'Celeba':
+    te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+
+elif source == 'Custom':
+    te_data = data.Custom('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+else:
+    print('Incorrect Source: Choose Celeba or Custom')
+    exit()
 
 # models
 Genc = partial(models.Genc, dim=enc_dim, n_layers=enc_layers)
@@ -90,7 +99,11 @@ try:
         for i in range(len(atts)):
             tmp = np.array(a_sample_ipt, copy=True)
             tmp[:, i] = 1 - tmp[:, i]   # inverse attribute
-            tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+
+            if source == 'Celeba':
+                tmp = data.Celeba.check_attribute_conflict(tmp, atts[i], atts)
+            elif source == 'Custom':
+                tmp = data.Custom.check_attribute_conflict(tmp, atts[i], atts)
             b_sample_ipt_list.append(tmp)
 
         x_sample_opt_list = [xa_sample_ipt, np.full((1, img_size, img_size // 10, 3), -1.0)]
@@ -103,9 +116,13 @@ try:
 
         save_dir = './output/%s/sample_testing' % experiment_name
         pylib.mkdir(save_dir)
-        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx + 182638))
+        if source == 'Celeba':
+            add = 182638
+        else:
+            add = 0
+        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx+add))
 
-        print('%d.png done!' % (idx + 182638))
+        print('%d.png done!' % (idx+add))
 
 except:
     traceback.print_exc()

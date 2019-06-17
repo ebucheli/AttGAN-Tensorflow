@@ -136,6 +136,106 @@ class Dataset(object):
     def batch_op(self):
         return self._batch_op
 
+class Custom(Dataset):
+
+    att_dict = {"Bald":0,
+                "Bangs":1,
+                "Black_Hair":2,
+                "Blond_Hair":3,
+                "Brown_Hair":4,
+                "Bushy_Eyebrows":5,
+                "Eyeglasses":6,
+                "Male":7,
+                "Mouth_Slightly_Open":8,
+                "Mustache":9,
+                "No_Beard":10,
+                "Pale_Skin":11,
+                "Young":12}
+
+    def __init__(self, data_dir, atts, img_resize, batch_size, prefetch_batch = 2, drop_remainder = True,
+                 num_threads=16, shuffle=True, buffer_size=4096, repeat=-1, sess = None, part='train', crop=True):
+
+        super(Custom,self).__init__()
+
+        list_file = os.path.join(data_dir, 'list_attr_custom.txt')
+
+        if crop:
+            img_dir_jpg = os.path.join(data_dir, 'custom_data')
+            img_dir_png = os.path.join(data_dir, 'custom_data_png')
+        else:
+            img_dir_jpg = os.path.join(data_dir, 'img_crop_celeba')
+            img_dir_png = os.path.join(data_dir, 'img_crop_celeba_png')
+
+        names = np.loadtxt(list_file, skiprows = 2, usecols = [0], dtype = np.str)
+        print(img_dir_jpg)
+        if os.path.exists(img_dir_png):
+            img_paths = [os.path.join(img_dir_png,name.replace('jpg','png')) for name in names]
+        elif os.path.exists(img_dir_jpg):
+            img_paths = [os.path.join(img_dir_jpg, name) for name in names]
+
+        att_id = [Custom.att_dict[att] + 1 for att in atts]
+        labels = np.loadtxt(list_file, skiprows=2, usecols = att_id, dtype = np.int64)
+
+        if img_resize == 64:
+            offset_h = 40
+            offset_w = 15
+            imh_size = 148
+        else:
+            offset_h = 26
+            offset_w = 3
+            img_size = 170
+
+        def _map_func(img, label):
+            if crop:
+                img = tf.image.resize_images(img, [img_resize,img_resize], tf.image.ResizeMethod.BICUBIC)
+            img = tf.clip_by_value(img, 0, 255) / 127.5 - 1
+            label = (label + 1) // 2
+            return img,label
+        if part == 'test':
+            drop_remainder = False
+            shuffle = False
+            repeat = 1
+
+        dataset = disk_image_batch_dataset(img_paths=img_paths,
+                                           labels=labels,
+                                           batch_size=batch_size,
+                                           prefetch_batch=prefetch_batch,
+                                           drop_remainder=drop_remainder,
+                                           map_func=_map_func,
+                                           num_threads=num_threads,
+                                           shuffle=shuffle,
+                                           buffer_size=buffer_size,
+                                           repeat=repeat)
+        self._bulid(dataset, sess)
+
+        self._img_num = len(img_paths)
+
+    def __len__(self):
+        return self._img_num
+
+    @staticmethod
+    def check_attribute_conflict(att_batch, att_name, att_names):
+        def _set(att, value, att_name):
+            if att_name in att_names:
+                att[att_names.index(att_name)] = value
+        att_id = att_names.index(att_name)
+
+        for att in att_batch:
+            if att_name in ['Bald', 'Receding_Hairline'] and att[att_id] == 1:
+                _set(att, 0, 'Bangs')
+            elif att_name == 'Bangs' and att[att_id] == 1:
+                _set(att, 0, 'Bald')
+                _set(att, 0, 'Receding_Hairline')
+            elif att_name in ['Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Gray_Hair'] and att[att_id] == 1:
+                for n in ['Black_Hair','Blond_Hair','Brown_Hair','Gray_Hair']:
+                    if n != att_name:
+                        _set(att,0,n)
+            elif att_name in ['Straight_Hair', 'Wavy_Hair'] and att[att_id] == 1:
+                for n in ['Straight_Hair', 'Wavy_Hair']:
+                    if n != att_name:
+                        _set(att, 0, n)
+        return att_batch
+
 
 class Celeba(Dataset):
 
@@ -253,9 +353,11 @@ class Celeba(Dataset):
 if __name__ == '__main__':
     import imlib as im
     atts = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair', 'Brown_Hair', 'Bushy_Eyebrows', 'Eyeglasses', 'Male', 'Mouth_Slightly_Open', 'Mustache', 'No_Beard', 'Pale_Skin', 'Young']
-    data = Celeba('./data', atts, 128, 32, part='val')
+    #atts = ['Bald', 'Bangs', 'Black_Hair', 'Blond_Hair', 'Brown_Hair','Brown_Hair','Gray_Hair','Receding_Hairline','Straight_Hair','Wavy_Hair']
+    #data = Celeba('./data', atts, 128, 32, part='val')
+    data = Custom('./data',atts,128,2,part = 'val')
     batch = data.get_next()
-    print(len(data))
+    print("Length: ",len(data))
     print(batch[1][1], batch[1].dtype)
     print(batch[0].min(), batch[1].max(), batch[0].dtype)
     im.imshow(batch[0][1])

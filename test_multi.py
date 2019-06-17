@@ -24,6 +24,7 @@ import models
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--experiment_name', dest='experiment_name', help='experiment_name')
+parser.add_argument('--source', dest = 'source', help='source')
 parser.add_argument('--test_atts', dest='test_atts', nargs='+', help='test_atts')
 parser.add_argument('--test_ints', dest='test_ints', type=float, nargs='+', help='test_ints')
 args_ = parser.parse_args()
@@ -47,6 +48,7 @@ dis_layers = args['dis_layers']
 test_atts = args_.test_atts
 thres_int = args['thres_int']
 test_ints = args_.test_ints
+source = args_.source
 # others
 use_cropped_img = args['use_cropped_img']
 experiment_name = args_.experiment_name
@@ -64,7 +66,14 @@ assert len(test_ints) == len(test_atts), 'the lengths of test_ints and test_atts
 
 # data
 sess = tl.session()
-te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+if source == 'Celeba':
+    te_data = data.Celeba('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+
+elif source == 'Custom':
+    te_data = data.Custom('./data', atts, img_size, 1, part='test', sess=sess, crop=not use_cropped_img)
+else:
+    print('Incorrect Source: Choose Celeba or Custom')
+    exit()
 
 # models
 Genc = partial(models.Genc, dim=enc_dim, n_layers=enc_layers)
@@ -98,7 +107,10 @@ try:
         for a in test_atts:
             i = atts.index(a)
             b_sample_ipt[:, i] = 1 - b_sample_ipt[:, i]   # inverse attribute
-            b_sample_ipt = data.Celeba.check_attribute_conflict(b_sample_ipt, atts[i], atts)
+            if source == 'Celeba':
+                b_sample_ipt = data.Celeba.check_attribute_conflict(b_sample_ipt, atts[i], atts)
+            elif source == 'Custom':
+                b_sample_ipt = data.Custom.check_attribute_conflict(b_sample_ipt, atts[i], atts)
 
         x_sample_opt_list = [xa_sample_ipt, np.full((1, img_size, img_size // 10, 3), -1.0)]
         _b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int
@@ -109,9 +121,14 @@ try:
 
         save_dir = './output/%s/sample_testing_multi_%s' % (experiment_name, str(test_atts))
         pylib.mkdir(save_dir)
-        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx + 182638))
 
-        print('%d.png done!' % (idx + 182638))
+        if source == 'Celeba':
+            add = 182638
+        else:
+            add = 0
+        im.imwrite(sample.squeeze(0), '%s/%d.png' % (save_dir, idx + add))
+
+        print('%d.png done!' % (idx + add))
 
 except:
     traceback.print_exc()
