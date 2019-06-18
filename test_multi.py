@@ -16,6 +16,7 @@ import tflib as tl
 
 import data
 import models
+import matplotlib.pyplot as plt
 
 
 # ==============================================================================
@@ -117,8 +118,14 @@ try:
         for a, i in zip(test_atts, test_ints):
             _b_sample_ipt[..., atts.index(a)] = _b_sample_ipt[..., atts.index(a)] * i / thres_int
         x_sample_opt_list.append(sess.run(x_sample, feed_dict={xa_sample: xa_sample_ipt, _b_sample: _b_sample_ipt}))
-        sample = np.concatenate(x_sample_opt_list, 2)
 
+        ind_dir = './output/%s/sample_testing_multi_ind%s' % (experiment_name, str(test_atts))
+        pylib.mkdir(ind_dir)
+        im.imwrite(x_sample_opt_list[0][0],'%s/%d_input.png' %(ind_dir,idx))
+        im.imwrite(x_sample_opt_list[2][0],'%s/%d_gen.png' %(ind_dir,idx))
+
+        sample = np.concatenate(x_sample_opt_list, 2)
+        #print(sample.shape)
         save_dir = './output/%s/sample_testing_multi_%s' % (experiment_name, str(test_atts))
         pylib.mkdir(save_dir)
 

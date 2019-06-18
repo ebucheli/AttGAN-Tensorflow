@@ -270,7 +270,7 @@ class Celeba(Dataset):
             img_paths = [os.path.join(img_dir_png, name.replace('jpg', 'png')) for name in names]
         elif os.path.exists(img_dir_jpg):
             img_paths = [os.path.join(img_dir_jpg, name) for name in names]
-
+        #print(img_dir_jpg)
         att_id = [Celeba.att_dict[att] + 1 for att in atts]
         labels = np.loadtxt(list_file, skiprows=2, usecols=att_id, dtype=np.int64)
 

@@ -16,6 +16,7 @@ import tflib as tl
 
 import data
 import models
+import matplotlib.pyplot as plt
 
 
 # ==============================================================================
@@ -107,13 +108,21 @@ try:
             b_sample_ipt_list.append(tmp)
 
         x_sample_opt_list = [xa_sample_ipt, np.full((1, img_size, img_size // 10, 3), -1.0)]
+
         for i, b_sample_ipt in enumerate(b_sample_ipt_list):
             _b_sample_ipt = (b_sample_ipt * 2 - 1) * thres_int
             if i > 0:   # i == 0 is for reconstruction
                 _b_sample_ipt[..., i - 1] = _b_sample_ipt[..., i - 1] * test_int / thres_int
             x_sample_opt_list.append(sess.run(x_sample, feed_dict={xa_sample: xa_sample_ipt, _b_sample: _b_sample_ipt}))
+        #x_sample_opt_list[2].shape
+        #plt.imshow((x_sample_opt_list[2][0]+1)/2)
+        #plt.show()
         sample = np.concatenate(x_sample_opt_list, 2)
-
+        #print(sample.shape)
+        #print(sample.max())
+        #print(sample.min())
+        #plt.imshow((sample[0]+1)/2)
+        #plt.show()
         save_dir = './output/%s/sample_testing' % experiment_name
         pylib.mkdir(save_dir)
         if source == 'Celeba':
